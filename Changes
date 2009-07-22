@@ -1,0 +1,7 @@
+Revision history for CSS-Packer
+
+0.1	2008-11-18
+	First version, released on an unsuspecting world.
+
+0.2	2008-12-22
+	- Added support for removing whitespaces before and after commas
