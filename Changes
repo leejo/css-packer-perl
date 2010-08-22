@@ -1,7 +1,12 @@
 Revision history for CSS-Packer
 
-0.1	2008-11-18
-	First version, released on an unsuspecting world.
+0.03_01 2010-08-22
+    - IE5/Mac backslash hack is no longer supported.
+    - Moved regexp grouping stuff to Regexp::RegGrp.
+    - Switched to Module::Install.
 
-0.2	2008-12-22
-	- Added support for removing whitespaces before and after commas
+0.2 2008-12-22
+    - Added support for removing whitespaces before and after commas.
+
+0.1 2008-11-18
+    First version, released on an unsuspecting world.

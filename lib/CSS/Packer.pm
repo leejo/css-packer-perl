@@ -4,219 +4,348 @@ use 5.008;
 use warnings;
 use strict;
 use Carp;
+use Regexp::RegGrp;
 
-use vars qw/$VERSION $RULE $DECLARATION $COMMENT $CHARSET $MEDIA $IMPORT $PLACEHOLDER/;
+our $VERSION        = '0.03_01';
 
-$VERSION = '0.2';
+our $DICTIONARY     = {
+    'STRING1'   => qr~"(?>(?:(?>[^"\\]+)|\\.|\\")*)"~,
+    'STRING2'   => qr~'(?>(?:(?>[^'\\]+)|\\.|\\')*)'~
+};
 
-$RULE = qr/([^{}~;]+)\{([^{}]*)\}/;
+our $WHITESPACES    = '\s+';
 
-$IMPORT = qr/\@import\s+("[^"]+"|'[^']+'|url\(\s*"[^"]+"\s*\)|url\(\s*'[^']+'\s*\)|url\(\s*[^'"]+?\s*\))(.*?);/;
+our $RULE           = '([^{};]+)\{([^{}]*)\}';
 
-$MEDIA = qr/\@media([^{}]+){((\s*$IMPORT|$RULE)+)\s*}/;
+our $URL            = 'url\(\s*(' . $DICTIONARY->{STRING1} . '|' . $DICTIONARY->{STRING2} . '|[^\'"\s]+?)\s*\)';
 
-$DECLARATION = qr/((?>[^;:]+)):(?<=:)((?>[^;]*));/;
+our $IMPORT         = '\@import\s+(' . $DICTIONARY->{STRING1} . '|' . $DICTIONARY->{STRING2} . '|' . $URL . ')(?>[^;]*);';
 
-$COMMENT = qr/(\/\*[^*]*\*+([^\/][^*]*\*+)*\/)/;
+our $MEDIA          = '\@media([^{}]+)\{(' . $IMPORT . '|' . $RULE . '|' . $WHITESPACES . ')+\}';
 
-$CHARSET = qr/^(\@charset)\s+("[^"]*";|'[^']*';)/;
+our $DECLARATION    = '((?>[^;:]+)):(?<=:)((?>[^;]*))(?:;|\s*$)';
 
-$PLACEHOLDER = qr/(?>[^~]*)(~(iec_start|iec_end|charset|import_\d+|media_\d+|rule_\d+)~)(?>[^~]*)/;
+our $COMMENT        = '(\/\*[^*]*\*+([^\/][^*]*\*+)*\/)';
 
-# -----------------------------------------------------------------------------
+our $PACKER_COMMENT = '\/\*\s*CSS::Packer\s*(\w+)\s*\*\/';
+
+our $CHARSET        = '^(\@charset)\s+(' . $DICTIONARY->{STRING1} . '|' . $DICTIONARY->{STRING2} . ');';
+
+our $PLACEHOLDER    = '~(charset|media|import|content_value|rule)_(\d+)~';
+
+our $PH_PATTERN     = '~%s_%d~';
+
+# --------------------------------------------------------------------------- #
+
+sub init {
+    my $class    = shift;
+    my $self    = {};
+
+    $self->{content_value}->{reggrp_data} = [
+        {
+            regexp      => $DICTIONARY->{STRING1},
+            replacement => sub {
+                return sprintf( $PH_PATTERN, 'content_value', $_[0]->{store_index} );
+            },
+            store       => sub {
+                return $_[0]->{match};
+            }
+        },
+        {
+            regexp      => $DICTIONARY->{STRING2},
+            replacement => sub {
+                return sprintf( $PH_PATTERN, 'content_value', $_[0]->{store_index} );
+            },
+            store       => sub {
+                return $_[0]->{match};
+            }
+        },
+        {
+            regexp      => qr~([\w-]+)\(\s*([\w-]+)\s*\)~,
+            replacement => sub {
+                return sprintf( $PH_PATTERN, 'content_value', $_[0]->{store_index} );
+            },
+            store       => sub {
+                return $_[0]->{submatches}->[0] . '(' . $_[0]->{submatches}->[0] . ')';
+            }
+        }
+    ];
+
+    $self->{whitespaces}->{reggrp_data} = [
+        {
+            regexp      => $WHITESPACES,
+            replacement => ''
+        }
+    ];
+
+    $self->{url}->{reggrp_data} = [
+        {
+            regexp      => $URL,
+            replacement => sub {
+                my $url  = $_[0]->{submatches}->[0];
+
+                return 'url(' . $url . ')';
+            }
+        }
+    ];
+
+    $self->{import}->{reggrp_data} = [
+        {
+            regexp      => $IMPORT,
+            replacement => sub {
+                return sprintf( $PH_PATTERN, 'import', $_[0]->{store_index} );
+            },
+            store       => sub {
+                my $submatches  = $_[0]->{submatches};
+                my $url         = $submatches->[0];
+                my $mediatype   = $submatches->[1];
+                my $opts        = $_[0]->{opts} || {};
+
+                my $compress    = _get_opt( $opts, 'compress' );
+
+                # I don't like this, but
+                # $self->{url}->{reggrp}->exec( \$url );
+                # will not work. It isn't initialized jet.
+                # If someone has a better idea, please let me know
+                $self->_process_wrapper( 'url', \$url, $opts );
+
+                $mediatype =~ s/^\s*|\s*$//gs;
+                $mediatype =~ s/\s*,\s*/,/gsm;
+
+                return '@import ' . $url . ( $mediatype ? ( ' ' . $mediatype ) : '' ) . ';' . ( $compress eq 'pretty' ? "\n" : '' );
+            }
+        }
+    ];
+
+    $self->{declaration}->{reggrp_data} = [
+        {
+            regexp      => $DECLARATION,
+            replacement => sub {
+                my $submatches  = $_[0]->{submatches};
+                my $key         = $submatches->[0];
+                my $value       = $submatches->[1];
+                my $opts        = $_[0]->{opts} || {};
+
+                my $compress    = _get_opt( $opts, 'compress' );
+
+                $key    =~ s/^\s*|\s*$//gs;
+                $value  =~ s/^\s*|\s*$//gs;
+
+                if ( $key eq 'content' ) {
+                    # I don't like this, but
+                    # $self->{content_value}->{reggrp}->exec( \$value );
+                    # will not work. It isn't initialized jet.
+                    # If someone has a better idea, please let me know
+                    $self->_process_wrapper( 'content_value', \$value, $opts );
+                    $self->_process_wrapper( 'whitespaces', \$value, $opts );
+
+                    $self->_restore_wrapper( 'content_value', \$value );
+                }
+                else {
+                    $value =~ s/\s*,\s*/,/gsm;
+                    $value =~ s/\s+/ /gsm;
+                }
+
+                return '' if ( not $key or ( not $value and $value ne '0' ) );
+
+                # print 'key: ' . $key . ', value: ' . $value . "\n";
+
+                return $key . ':' . $value . ';' . ( $compress eq 'pretty' ? "\n" : '' );
+            }
+        }
+    ];
+
+    $self->{rule}->{reggrp_data} = [
+        {
+            regexp      => $RULE,
+            replacement => sub {
+                return sprintf( $PH_PATTERN, 'rule', $_[0]->{store_index} );
+            },
+            store       => sub {
+                my $submatches  = $_[0]->{submatches};
+                my $selector    = $submatches->[0];
+                my $declaration = $submatches->[1];
+                my $opts        = $_[0]->{opts} || {};
+
+                my $compress    = _get_opt( $opts, 'compress' );
+
+                $selector =~ s/^\s*|\s*$//gs;
+                $selector =~ s/\s*,\s*/,/gsm;
+                $selector =~ s/\s+/ /gsm;
+
+                $declaration =~ s/^\s*|\s*$//gs;
+
+                # print'declaration - post: ' . $declaration . "\n";
+
+                # I don't like this, but
+                # $self->{declaration}->{reggrp}->exec( \$declaration );
+                # will not work. It isn't initialized jet.
+                # If someone has a better idea, please let me know
+                $self->_process_wrapper( 'declaration', \$declaration, $opts );
+
+                # print 'declaration - pre: ' . $declaration . "\n";
+
+                my $store = $selector . '{' . ( $compress eq 'pretty' ? "\n" : '' ) . $declaration . '}' .
+                    ( $compress eq 'pretty' ? "\n" : '' );
+
+                $store = '' unless ( $selector or $declaration );
+
+                return $store;
+            }
+        }
+    ];
+
+    $self->{media}->{reggrp_data} = [
+        {
+            regexp      => $MEDIA,
+            replacement => sub {
+                my $submatches  = $_[0]->{submatches};
+                my $mediatype   = $submatches->[0];
+                my $mediarules  = $submatches->[1];
+                my $opts        = $_[0]->{opts} || {};
+
+                my $compress    = _get_opt( $opts, 'compress' );
+
+                $mediatype =~ s/^\s*|\s*$//gs;
+                $mediatype =~ s/\s*,\s*/,/gsm;
+
+                # I don't like this, but
+                # $self->{mediarules}->{reggrp}->exec( \$mediarules );
+                # will not work. It isn't initialized jet.
+                # If someone has a better idea, please let me know
+                $self->_process_wrapper( 'import', \$mediarules, $opts );
+                $self->_process_wrapper( 'rule', \$mediarules, $opts );
+                $self->_process_wrapper( 'whitespaces', \$mediarules, $opts );
+
+                $self->_restore_wrapper( 'rule', \$mediarules );
+                $self->_restore_wrapper( 'import', \$mediarules );
+
+                return '@media ' . $mediatype . '{' . ( $compress eq 'pretty' ? "\n" : '' ) .
+                    $mediarules . '}' . ( $compress eq 'pretty' ? "\n" : '' );
+            }
+        }
+    ];
+
+    $self->{charset}->{reggrp_data} = [
+        {
+            regexp      => $CHARSET,
+            replacement => sub {
+                return sprintf( $PH_PATTERN, 'charset', $_[0]->{store_index} );
+            },
+            store       => sub {
+                my $submatches  = $_[0]->{submatches};
+                my $opts        = $_[0]->{opts} || {};
+
+                return $submatches->[0] . " " . $submatches->[1] . ( $opts->{compress} eq 'pretty' ? "\n" : '' );
+            }
+        }
+    ];
+
+    map {
+        $self->{$_}->{reggrp} = Regexp::RegGrp->new(
+            {
+                reggrp          => $self->{$_}->{reggrp_data},
+                restore_pattern => '~' . $_ . '_(\d+)~'
+            }
+        );
+    } ( 'whitespaces', 'url', 'import', 'declaration', 'rule', 'media', 'content_value' );
+
+    bless( $self, $class );
+
+    return $self;
+}
 
 sub minify {
-	my ( $scalarref, $opts ) = @_;
-	
-	if ( ref( $scalarref ) ne 'SCALAR' ) {
-		carp( 'First argument must be a scalarref!' );
-		return '';
-	}
-	
-	return '' if ( ${$scalarref} eq '' );
-	
-	if ( ref( $opts ) ne 'HASH' ) {
-		carp( 'Second argument must be a hashref of options! Using defaults!' ) if ( $opts );
-		$opts = { 'compress' => 'pretty' };
-	}
-	else {
-		$opts->{'compress'} = grep( $opts->{'compress'}, ( 'minify', 'pretty' ) ) ? $opts->{'compress'} : 'pretty';
-	}
-	
-	$opts = { 'compress' => 'pretty' } if ( ref( $opts ) ne 'HASH' or $opts->{'compress'} ne 'minify' );
-	
-	${$scalarref} =~ s/~iec_start~/ /gsm;
-	${$scalarref} =~ s/~iec_end~/ /gsm;
-	
-	${$scalarref} =~ s/~charset~/ /gsm;
-	${$scalarref} =~ s/~import_\d+~/ /gsm;
-	${$scalarref} =~ s/~media_\d+~/ /gsm;
-	${$scalarref} =~ s/~rule_\d+~/ /gsm;
- 	${$scalarref} =~ s/\r//gsm;
-	
-	my $charset	= '';
-	my $import	= [];
-	my $media	= [];
-	my $rule	= [];
-	
-	my $_do_declaration = sub {
-		my ( $key, $value ) = @_;
-		
-		$key	=~ s/^\s*|\s*$//gs;
-		$value	=~ s/^\s*|\s*$//gs;
-		
-		if ( $key eq 'content' ) {
-			my @strings;
-			my $_do_content = sub {
-				my $string = shift;
-				
-				my $ret = '~string_' . scalar( @strings ) . '~';
-				
-				push( @strings, $string );
-				
-				return $ret;
-			};
-			
-			$value =~ s/"(\\.|[^"\\])*"/&$_do_content( $& )/egs;
-			
-			$value =~ s/(?>\s+)(~string_\d+~)/$1/gsm;
-			$value =~ s/(~string_\d+~)(?>\s+)/$1/gsm;
-			
-			$value =~ s/~string_(\d+)~/$strings[$1]/egsm;
-		}
-		else {
-			$value =~ s/\s*,\s*/,/gsm;
-			$value =~ s/\s+/ /gsm;
-		}
-		
-		return '' if ( not $key or ( not $value and $value ne '0' ) );
-		
-		return $key . ':' . $value . ';' . ( $opts->{'compress'} eq 'pretty' ? "\n" : '' );
-	};
-	
-	my $_do_rule = sub {
-		my ( $selector, $declaration ) = @_;
-		
-		$selector =~ s/^\s*|\s*$//gs;
-		$selector =~ s/\s*,\s*/,/gsm;
-		$selector =~ s/\s+/ /gsm;
-		
-		$declaration =~ s/^\s*|\s*$//gs;
-		
-		$declaration =~ s/$DECLARATION/&$_do_declaration( $1, $2 )/egsm;
-		
-		my $ret = '~rule_' . scalar( @{$rule} ) . '~';
-		
-		my $store = $selector . '{' . ( $opts->{'compress'} eq 'pretty' ? "\n" : '' ) . $declaration . '}' . ( $opts->{'compress'} eq 'pretty' ? "\n" : '' );
-		
-		$store = '' unless ( $selector or $declaration );
-		
-		push( @{$rule}, $store );
-		
-		return $ret;
-	};
-	
-	my $_do_import = sub {
-		my ( $file, $mediatype ) = @_;
-		
-		if ( $file =~ /^("|')(?>\s*)(.*?)(?>\s*)\1$/ ) {
-			$file = $1 . $2 . $1;
-		}
-		elsif ( $file =~ /^url\(\s*("|')(?>\s*)(.*?)(?>\s*)\1\s*\)$/ ) {
-			$file = 'url(' . $1 . $2 . $1 . ')';
-		}
-		elsif ( $file =~ /^url\((?>\s*)(.*?)(?>\s*)\)$/ ) {
-			$file = 'url(' . $1 . ')';
-		}
-		else {
-			$file = '';
-		}
-		
-		my $store = '@import ' . $file;
-		
-		if ( $mediatype ) {
-			$mediatype =~ s/^\s*|\s*$//gs;
-			$mediatype =~ s/\s*,\s*/,/gsm;
-			
-			$store .= $mediatype;
-		}
-		
-		$store .= ';' . ( $opts->{'compress'} eq 'pretty' ? "\n" : '' );
-		
-		my $ret = '~import_' . scalar( @{$import} ) . '~';
-		
-		push( @{$import}, $store );
-		
-		return $ret;
-	};
-	
-	my $iec_isopen = 0;
-	
-	my $_do_comment = sub {
-		my $comment = shift;
-		
-		if ( $comment =~ /\\\*\/$/ and not $iec_isopen ) {
-			$iec_isopen = 1;
-			return '~iec_start~';
-		}
-		elsif ( $comment !~ /\\\*\/$/ and $iec_isopen ) {
-			$iec_isopen = 0;
-			return '~iec_end~';
-		}
-		
-		return ' ';
-	};
-	
-	my $_do_charset = sub {
-		my ( $selector, $declaration ) = @_;
-		
-		$charset = $selector . " " . $declaration . ( $opts->{'compress'} eq 'pretty' ? "\n" : '' );
-		
-		return '~charset~';
-	};
-	
-	my $_do_media = sub {
-		my ( $mediatype, $mediarules ) = @_;
-		
-		$mediatype =~ s/^\s*|\s*$//gs;
-		$mediatype =~ s/\s*,\s*/,/gsm;
-		
-		$mediarules =~ s/$IMPORT/&$_do_import( $1, $2 )/egsm;
-		$mediarules =~ s/$RULE/&$_do_rule( $1, $2 )/egsm;
-		
-		$mediarules =~ s/$PLACEHOLDER/$1/gsm;
-		
-		my $ret = '~media_' . scalar( @{$media} ) . '~';
-		
-		my $store = '@media ' . $mediatype . '{' . ( $opts->{'compress'} eq 'pretty' ? "\n" : '' ) .
-			$mediarules . '}' . ( $opts->{'compress'} eq 'pretty' ? "\n" : '' );
-		
-		push( @{$media}, $store );
-		
-		return $ret;
-	};
-	
-	${$scalarref} =~ s/$CHARSET/&$_do_charset( $1, $2 )/emos;
-	
-	${$scalarref} =~ s/$COMMENT/&$_do_comment( $& )/egsm;
-	
-	${$scalarref} =~ s/$MEDIA/&$_do_media( $1, $2 )/egsm;
-	
-	${$scalarref} =~ s/$IMPORT/&$_do_import( $1, $2 )/egsm;
-	
-	${$scalarref} =~ s/$RULE/&$_do_rule( $1, $2 )/egsm;
-	
-	${$scalarref} =~ s/$PLACEHOLDER/$1/gsm;
-	
-	${$scalarref} =~ s/~media_(\d+)~/$media->[$1]/egsm;
-	${$scalarref} =~ s/~rule_(\d+)~/$rule->[$1]/egsm;
-	${$scalarref} =~ s/~import_(\d+)~/$import->[$1]/egsm;
-	${$scalarref} =~ s/~charset~/$charset/gsm;
-	
-	${$scalarref} =~ s/~iec_start~/sprintf( '\/*\\*\/%s', $opts->{'compress'} eq 'pretty' ? "\n" : '' )/egsm;
-	${$scalarref} =~ s/~iec_end~/sprintf( '\/**\/%s', $opts->{'compress'} eq 'pretty' ? "\n" : '' )/egsm;
-	
-	${$scalarref} =~ s/\n$//s unless ( $opts->{'compress'} eq 'pretty' );
+    my ( $self, $input, $opts );
+
+    unless (
+        ref( $_[0] ) and
+        ref( $_[0] ) eq __PACKAGE__
+    ) {
+        $self = __PACKAGE__->init();
+
+        shift( @_ ) unless ( ref( $_[0] ) );
+
+        ( $input, $opts ) = @_;
+    }
+    else {
+        ( $self, $input, $opts ) = @_;
+    }
+
+    if ( ref( $input ) ne 'SCALAR' ) {
+        carp( 'First argument must be a scalarref!' );
+        return undef;
+    }
+
+    my $css     = \'';
+    my $cont    = 'void';
+
+    if ( defined( wantarray ) ) {
+        my $tmp_input = ref( $input ) ? ${$input} : $input;
+
+        $css    = \$tmp_input;
+        $cont   = 'scalar';
+    }
+    else {
+        $css = ref( $input ) ? $input : \$input;
+    }
+
+    if ( ref( $opts ) ne 'HASH' ) {
+        carp( 'Second argument must be a hashref of options! Using defaults!' ) if ( $opts );
+        $opts = { compress => 'pretty' };
+    }
+    else {
+        $opts->{compress} = grep( $opts->{compress}, ( 'minify', 'pretty' ) ) ? $opts->{compress} : 'pretty';
+    }
+
+    if ( ${$css} =~ /$PACKER_COMMENT/ ) {
+        my $compress = $1;
+        if ( $compress eq '_no_compress_' ) {
+            return ( $cont eq 'scalar' ) ? ${$css} : undef;
+        }
+
+        $opts->{compress} = grep( $compress, ( 'minify', 'pretty' ) ) ? $compress : $opts->{compress};
+    }
+
+    ${$css} =~ s/$COMMENT/ /gsm;
+
+    $self->{charset}->{reggrp}->exec( $css, $opts );
+    $self->{media}->{reggrp}->exec( $css, $opts );
+    $self->{import}->{reggrp}->exec( $css, $opts );
+    $self->{rule}->{reggrp}->exec( $css, $opts );
+    $self->{whitespaces}->{reggrp}->exec( $css, $opts );
+
+    $self->{rule}->{reggrp}->restore_stored( $css );
+    $self->{import}->{reggrp}->restore_stored( $css );
+    $self->{media}->{reggrp}->restore_stored( $css );
+    $self->{charset}->{reggrp}->restore_stored( $css );
+
+    return ${$css} if ( $cont eq 'scalar' );
+}
+
+sub _process_wrapper {
+    my ( $self, $reg_name, $in, $opts ) = @_;
+
+    $self->{$reg_name}->{reggrp}->exec( $in, $opts );
+}
+
+sub _restore_wrapper {
+    my ( $self, $reg_name, $in ) = @_;
+
+    $self->{$reg_name}->{reggrp}->restore_stored( $in );
+}
+
+sub _get_opt {
+    my ( $opts_hash, $opt ) = @_;
+
+    $opts_hash  ||= {};
+    $opt       ||= '';
+
+    my $ret = '';
+
+    $ret = $opts_hash->{$opt} if ( defined( $opts_hash->{$opt} ) );
+
+    return $ret;
 }
 
 1;
@@ -229,7 +358,7 @@ CSS::Packer - Another CSS minifier
 
 =head1 VERSION
 
-Version 0.2
+Version 0.03_01
 
 =head1 SYNOPSIS
 
@@ -260,7 +389,7 @@ Default value is 'pretty'.
     a {
     color:          black
     ;}   div
-    
+
     { width:100px;
     }
 
@@ -297,7 +426,7 @@ perldoc CSS::Packer
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2008 Merten Falk, all rights reserved.
+Copyright 2008 - 2010 Merten Falk, all rights reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.

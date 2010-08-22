@@ -1,20 +1,13 @@
-use 5.008;
 use strict;
 use warnings;
-use ExtUtils::MakeMaker;
 
-WriteMakefile(
-    NAME                => 'CSS::Packer',
-    AUTHOR              => 'Merten Falk <nevesenin@cpan.org>',
-    VERSION_FROM        => 'lib/CSS/Packer.pm',
-    ABSTRACT_FROM       => 'lib/CSS/Packer.pm',
-    ($ExtUtils::MakeMaker::VERSION >= 6.3002
-      ? ('LICENSE'=> 'perl')
-      : ()),
-    PL_FILES            => {},
-    PREREQ_PM => {
-        'Test::More' => 0,
-    },
-    dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
-    clean               => { FILES => 'CSS-Packer-*' },
-);
+use inc::Module::Install;
+
+all_from        'lib/CSS/Packer.pm';
+test_requires   'Test::More'        => 0;
+requires        'Regexp::RegGrp'    => '0.001_002';
+
+repository 'http://github.com/nevesenin/css-packer-perl';
+
+auto_install();
+WriteAll();
