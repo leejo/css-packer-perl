@@ -8,7 +8,7 @@
 
 use Test::More;
 
-my $not = 6;
+my $not = 8;
 
 SKIP: {
 	eval( 'use CSS::Packer' );
@@ -21,6 +21,8 @@ SKIP: {
 	minTest( 's2', 'pretty' );
 	minTest( 's3', 'minify' );
 	minTest( 's4', 'minify' );
+	minTest( 's5', 'minify' );
+	minTest( 's6', 'minify' );
 
 	my $packer = CSS::Packer->init();
 

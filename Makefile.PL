@@ -5,9 +5,11 @@ use inc::Module::Install;
 
 all_from        'lib/CSS/Packer.pm';
 test_requires   'Test::More'        => 0;
-requires        'Regexp::RegGrp'    => '0.001_002';
+requires        'Regexp::RegGrp'    => "0.01_02";
 
 repository 'http://github.com/nevesenin/css-packer-perl';
+
+clean_files 't/stylesheets/s?-got.css';
 
 auto_install();
 WriteAll();

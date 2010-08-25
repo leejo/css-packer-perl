@@ -9,8 +9,8 @@ use Regexp::RegGrp;
 our $VERSION        = '0.03_01';
 
 our $DICTIONARY     = {
-    'STRING1'   => qr~"(?>(?:(?>[^"\\]+)|\\.|\\")*)"~,
-    'STRING2'   => qr~'(?>(?:(?>[^'\\]+)|\\.|\\')*)'~
+    'STRING1'   => qr~"(?>(?:(?>[^"\\]+)|\\.|\\"|\\\s)*)"~,
+    'STRING2'   => qr~'(?>(?:(?>[^'\\]+)|\\.|\\'|\\\s)*)'~
 };
 
 our $WHITESPACES    = '\s+';
@@ -19,9 +19,9 @@ our $RULE           = '([^{};]+)\{([^{}]*)\}';
 
 our $URL            = 'url\(\s*(' . $DICTIONARY->{STRING1} . '|' . $DICTIONARY->{STRING2} . '|[^\'"\s]+?)\s*\)';
 
-our $IMPORT         = '\@import\s+(' . $DICTIONARY->{STRING1} . '|' . $DICTIONARY->{STRING2} . '|' . $URL . ')(?>[^;]*);';
+our $IMPORT         = '\@import\s+(' . $DICTIONARY->{STRING1} . '|' . $DICTIONARY->{STRING2} . '|' . $URL . ')([^;]*);';
 
-our $MEDIA          = '\@media([^{}]+)\{(' . $IMPORT . '|' . $RULE . '|' . $WHITESPACES . ')+\}';
+our $MEDIA          = '\@media([^{}]+)\{((?:' . $IMPORT . '|' . $RULE . '|' . $WHITESPACES . ')+)\}';
 
 our $DECLARATION    = '((?>[^;:]+)):(?<=:)((?>[^;]*))(?:;|\s*$)';
 
@@ -31,10 +31,6 @@ our $PACKER_COMMENT = '\/\*\s*CSS::Packer\s*(\w+)\s*\*\/';
 
 our $CHARSET        = '^(\@charset)\s+(' . $DICTIONARY->{STRING1} . '|' . $DICTIONARY->{STRING2} . ');';
 
-our $PLACEHOLDER    = '~(charset|media|import|content_value|rule)_(\d+)~';
-
-our $PH_PATTERN     = '~%s_%d~';
-
 # --------------------------------------------------------------------------- #
 
 sub init {
@@ -43,31 +39,20 @@ sub init {
 
     $self->{content_value}->{reggrp_data} = [
         {
-            regexp      => $DICTIONARY->{STRING1},
-            replacement => sub {
-                return sprintf( $PH_PATTERN, 'content_value', $_[0]->{store_index} );
-            },
-            store       => sub {
-                return $_[0]->{match};
-            }
+            regexp      => $DICTIONARY->{STRING1}
         },
         {
-            regexp      => $DICTIONARY->{STRING2},
-            replacement => sub {
-                return sprintf( $PH_PATTERN, 'content_value', $_[0]->{store_index} );
-            },
-            store       => sub {
-                return $_[0]->{match};
-            }
+            regexp      => $DICTIONARY->{STRING2}
         },
         {
             regexp      => qr~([\w-]+)\(\s*([\w-]+)\s*\)~,
             replacement => sub {
-                return sprintf( $PH_PATTERN, 'content_value', $_[0]->{store_index} );
-            },
-            store       => sub {
                 return $_[0]->{submatches}->[0] . '(' . $_[0]->{submatches}->[0] . ')';
             }
+        },
+        {
+            regexp      => $WHITESPACES,
+            replacement => ''
         }
     ];
 
@@ -93,12 +78,9 @@ sub init {
         {
             regexp      => $IMPORT,
             replacement => sub {
-                return sprintf( $PH_PATTERN, 'import', $_[0]->{store_index} );
-            },
-            store       => sub {
                 my $submatches  = $_[0]->{submatches};
                 my $url         = $submatches->[0];
-                my $mediatype   = $submatches->[1];
+                my $mediatype   = $submatches->[2];
                 my $opts        = $_[0]->{opts} || {};
 
                 my $compress    = _get_opt( $opts, 'compress' );
@@ -137,9 +119,6 @@ sub init {
                     # will not work. It isn't initialized jet.
                     # If someone has a better idea, please let me know
                     $self->_process_wrapper( 'content_value', \$value, $opts );
-                    $self->_process_wrapper( 'whitespaces', \$value, $opts );
-
-                    $self->_restore_wrapper( 'content_value', \$value );
                 }
                 else {
                     $value =~ s/\s*,\s*/,/gsm;
@@ -147,8 +126,6 @@ sub init {
                 }
 
                 return '' if ( not $key or ( not $value and $value ne '0' ) );
-
-                # print 'key: ' . $key . ', value: ' . $value . "\n";
 
                 return $key . ':' . $value . ';' . ( $compress eq 'pretty' ? "\n" : '' );
             }
@@ -159,9 +136,6 @@ sub init {
         {
             regexp      => $RULE,
             replacement => sub {
-                return sprintf( $PH_PATTERN, 'rule', $_[0]->{store_index} );
-            },
-            store       => sub {
                 my $submatches  = $_[0]->{submatches};
                 my $selector    = $submatches->[0];
                 my $declaration = $submatches->[1];
@@ -175,15 +149,11 @@ sub init {
 
                 $declaration =~ s/^\s*|\s*$//gs;
 
-                # print'declaration - post: ' . $declaration . "\n";
-
                 # I don't like this, but
                 # $self->{declaration}->{reggrp}->exec( \$declaration );
                 # will not work. It isn't initialized jet.
                 # If someone has a better idea, please let me know
                 $self->_process_wrapper( 'declaration', \$declaration, $opts );
-
-                # print 'declaration - pre: ' . $declaration . "\n";
 
                 my $store = $selector . '{' . ( $compress eq 'pretty' ? "\n" : '' ) . $declaration . '}' .
                     ( $compress eq 'pretty' ? "\n" : '' );
@@ -195,7 +165,22 @@ sub init {
         }
     ];
 
-    $self->{media}->{reggrp_data} = [
+    $self->{mediarules}->{reggrp_data} = [
+        @{$self->{import}->{reggrp_data}},
+        @{$self->{rule}->{reggrp_data}},
+        @{$self->{whitespaces}->{reggrp_data}}
+    ];
+
+    $self->{global}->{reggrp_data} = [
+        {
+            regexp      => $CHARSET,
+            replacement => sub {
+                my $submatches  = $_[0]->{submatches};
+                my $opts        = $_[0]->{opts} || {};
+
+                return $submatches->[0] . " " . $submatches->[1] . ( $opts->{compress} eq 'pretty' ? "\n" : '' );
+            }
+        },
         {
             regexp      => $MEDIA,
             replacement => sub {
@@ -213,42 +198,23 @@ sub init {
                 # $self->{mediarules}->{reggrp}->exec( \$mediarules );
                 # will not work. It isn't initialized jet.
                 # If someone has a better idea, please let me know
-                $self->_process_wrapper( 'import', \$mediarules, $opts );
-                $self->_process_wrapper( 'rule', \$mediarules, $opts );
-                $self->_process_wrapper( 'whitespaces', \$mediarules, $opts );
-
-                $self->_restore_wrapper( 'rule', \$mediarules );
-                $self->_restore_wrapper( 'import', \$mediarules );
+                $self->_process_wrapper( 'mediarules', \$mediarules, $opts );
 
                 return '@media ' . $mediatype . '{' . ( $compress eq 'pretty' ? "\n" : '' ) .
                     $mediarules . '}' . ( $compress eq 'pretty' ? "\n" : '' );
             }
-        }
+        },
+        @{$self->{mediarules}->{reggrp_data}}
     ];
 
-    $self->{charset}->{reggrp_data} = [
-        {
-            regexp      => $CHARSET,
-            replacement => sub {
-                return sprintf( $PH_PATTERN, 'charset', $_[0]->{store_index} );
-            },
-            store       => sub {
-                my $submatches  = $_[0]->{submatches};
-                my $opts        = $_[0]->{opts} || {};
-
-                return $submatches->[0] . " " . $submatches->[1] . ( $opts->{compress} eq 'pretty' ? "\n" : '' );
-            }
-        }
-    ];
 
     map {
         $self->{$_}->{reggrp} = Regexp::RegGrp->new(
             {
-                reggrp          => $self->{$_}->{reggrp_data},
-                restore_pattern => '~' . $_ . '_(\d+)~'
+                reggrp => $self->{$_}->{reggrp_data}
             }
         );
-    } ( 'whitespaces', 'url', 'import', 'declaration', 'rule', 'media', 'content_value' );
+    } ( 'whitespaces', 'url', 'import', 'declaration', 'rule', 'content_value', 'mediarules', 'global' );
 
     bless( $self, $class );
 
@@ -309,16 +275,7 @@ sub minify {
 
     ${$css} =~ s/$COMMENT/ /gsm;
 
-    $self->{charset}->{reggrp}->exec( $css, $opts );
-    $self->{media}->{reggrp}->exec( $css, $opts );
-    $self->{import}->{reggrp}->exec( $css, $opts );
-    $self->{rule}->{reggrp}->exec( $css, $opts );
-    $self->{whitespaces}->{reggrp}->exec( $css, $opts );
-
-    $self->{rule}->{reggrp}->restore_stored( $css );
-    $self->{import}->{reggrp}->restore_stored( $css );
-    $self->{media}->{reggrp}->restore_stored( $css );
-    $self->{charset}->{reggrp}->restore_stored( $css );
+    $self->{global}->{reggrp}->exec( $css, $opts );
 
     return ${$css} if ( $cont eq 'scalar' );
 }
@@ -360,19 +317,25 @@ CSS::Packer - Another CSS minifier
 
 Version 0.03_01
 
-=head1 SYNOPSIS
-
-    use CSS::Packer;
-
-    CSS::Packer::minify( $scalarref, $opts );
-
 =head1 DESCRIPTION
 
 A fast pure Perl CSS minifier.
 
-=head1 FUNCTIONS
+=head1 SYNOPSIS
 
-=head2 CSS::Packer::minify( $scalarref, $opts );
+    use CSS::Packer;
+
+    my $packer = CSS::Packer->init();
+
+    $packer->minify( $scalarref, $opts );
+
+To return a scalar without changing the input simply use (e.g. example 2):
+
+    my $ret = $packer->minify( $scalarref, $opts );
+
+For backward compatibility it is still possible to call 'minify' as a function:
+
+    CSS::Packer::minify( $javascript, $opts );
 
 First argument must be a scalarref of CSS-Code.
 Second argument must be a hashref of options. The only option is
