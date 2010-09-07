@@ -335,7 +335,7 @@ To return a scalar without changing the input simply use (e.g. example 2):
 
 For backward compatibility it is still possible to call 'minify' as a function:
 
-    CSS::Packer::minify( $javascript, $opts );
+    CSS::Packer::minify( $scalarref, $opts );
 
 First argument must be a scalarref of CSS-Code.
 Second argument must be a hashref of options. The only option is

@@ -1,5 +1,8 @@
 Revision history for CSS-Packer
 
+0.03_02 2010-09-07
+    - Fixed typo in documentation.
+
 0.03_01 2010-08-22
     - IE5/Mac backslash hack is no longer supported.
     - Moved regexp grouping stuff to Regexp::RegGrp.
