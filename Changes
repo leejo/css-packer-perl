@@ -1,5 +1,8 @@
 Revision history for CSS-Packer
 
+0.03_03 2010-09-13
+    - Changed requirements to Regexp::RegGrp 0.0201
+
 0.03_02 2010-09-07
     - Fixed typo in documentation.
 

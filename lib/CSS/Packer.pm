@@ -6,7 +6,7 @@ use strict;
 use Carp;
 use Regexp::RegGrp;
 
-our $VERSION        = '0.03_01';
+our $VERSION        = '0.03_03';
 
 our $DICTIONARY     = {
     'STRING1'   => qr~"(?>(?:(?>[^"\\]+)|\\.|\\"|\\\s)*)"~,
@@ -315,7 +315,7 @@ CSS::Packer - Another CSS minifier
 
 =head1 VERSION
 
-Version 0.03_01
+Version 0.03_03
 
 =head1 DESCRIPTION
 
