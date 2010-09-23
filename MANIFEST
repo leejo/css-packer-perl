@@ -31,3 +31,5 @@ t/stylesheets/s5-expected.css
 t/stylesheets/s5.css
 t/stylesheets/s6-expected.css
 t/stylesheets/s6.css
+t/stylesheets/s7-expected.css
+t/stylesheets/s7.css

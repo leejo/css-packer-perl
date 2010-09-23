@@ -1,5 +1,9 @@
 Revision history for CSS-Packer
 
+0.03_04 2010-09-23
+    - Added option to define compression level via comment.
+    - Added tests.
+
 0.03_03 2010-09-13
     - Changed requirements to Regexp::RegGrp 0.0201
 

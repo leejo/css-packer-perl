@@ -6,7 +6,7 @@ use strict;
 use Carp;
 use Regexp::RegGrp;
 
-our $VERSION        = '0.03_03';
+our $VERSION        = '0.03_04';
 
 our $DICTIONARY     = {
     'STRING1'   => qr~"(?>(?:(?>[^"\\]+)|\\.|\\"|\\\s)*)"~,
@@ -258,13 +258,14 @@ sub minify {
 
     if ( ref( $opts ) ne 'HASH' ) {
         carp( 'Second argument must be a hashref of options! Using defaults!' ) if ( $opts );
-        $opts = { compress => 'pretty' };
+        $opts = { compress => 'pretty', no_compress_comment => 0 };
     }
     else {
-        $opts->{compress} = grep( $opts->{compress}, ( 'minify', 'pretty' ) ) ? $opts->{compress} : 'pretty';
+        $opts->{compress}               = grep( $opts->{compress}, ( 'minify', 'pretty' ) ) ? $opts->{compress} : 'pretty';
+        $opts->{no_compress_comment}    = $opts->{no_compress_comment} ? 1 : 0;
     }
 
-    if ( ${$css} =~ /$PACKER_COMMENT/ ) {
+    if ( not $opts->{no_compress_comment} and ${$css} =~ /$PACKER_COMMENT/ ) {
         my $compress = $1;
         if ( $compress eq '_no_compress_' ) {
             return ( $cont eq 'scalar' ) ? ${$css} : undef;
@@ -315,7 +316,7 @@ CSS::Packer - Another CSS minifier
 
 =head1 VERSION
 
-Version 0.03_03
+Version 0.03_04
 
 =head1 DESCRIPTION
 

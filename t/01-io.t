@@ -8,7 +8,7 @@
 
 use Test::More;
 
-my $not = 8;
+my $not = 9;
 
 SKIP: {
 	eval( 'use CSS::Packer' );
@@ -17,12 +17,13 @@ SKIP: {
 
 	plan tests => $not;
 
-	minTest( 's1', 'pretty' );
-	minTest( 's2', 'pretty' );
-	minTest( 's3', 'minify' );
-	minTest( 's4', 'minify' );
-	minTest( 's5', 'minify' );
-	minTest( 's6', 'minify' );
+	minTest( 's1', { compress => 'pretty' } );
+	minTest( 's2', { compress => 'pretty' } );
+	minTest( 's3', { compress => 'minify' } );
+	minTest( 's4', { compress => 'minify' } );
+	minTest( 's5', { compress => 'minify' } );
+	minTest( 's6', { compress => 'minify' } );
+	minTest( 's7', { compress => 'minify', no_compress_comment => 1 } );
 
 	my $packer = CSS::Packer->init();
 
@@ -58,8 +59,8 @@ sub filesMatch {
 }
 
 sub minTest {
-	my $filename = shift;
-	my $compress = shift || 'pretty';
+	my $filename    = shift;
+	my $opts        = shift || {};
 
 	open(INFILE, 't/stylesheets/' . $filename . '.css') or die("couldn't open file");
 	open(GOTFILE, '>t/stylesheets/' . $filename . '-got.css') or die("couldn't open file");
@@ -68,7 +69,7 @@ sub minTest {
 
 	my $packer = CSS::Packer->init();
 
-	$packer->minify( \$css, { 'compress' => $compress } );
+	$packer->minify( \$css, $opts );
 
 	print GOTFILE $css;
 	close(INFILE);
