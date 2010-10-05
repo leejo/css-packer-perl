@@ -1,12 +1,12 @@
 package CSS::Packer;
 
-use 5.008;
+use 5.008009;
 use warnings;
 use strict;
 use Carp;
 use Regexp::RegGrp;
 
-our $VERSION        = '0.03_04';
+our $VERSION        = '0.03_05';
 
 our $DICTIONARY     = {
     'STRING1'   => qr~"(?>(?:(?>[^"\\]+)|\\.|\\"|\\\s)*)"~,
@@ -316,7 +316,7 @@ CSS::Packer - Another CSS minifier
 
 =head1 VERSION
 
-Version 0.03_04
+Version 0.03_05
 
 =head1 DESCRIPTION
 
