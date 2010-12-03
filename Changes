@@ -1,5 +1,8 @@
 Revision history for CSS-Packer
 
+0.04    2010-12-03
+    - Raised version number.
+
 0.03_05 2010-10-05
     - Changed required perl version to 5.8.9.
 
