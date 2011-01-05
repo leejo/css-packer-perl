@@ -6,7 +6,7 @@ use strict;
 use Carp;
 use Regexp::RegGrp;
 
-our $VERSION        = '0.04';
+our $VERSION        = '0.0401';
 
 our $DICTIONARY     = {
     'STRING1'   => qr~"(?>(?:(?>[^"\\]+)|\\.|\\"|\\\s)*)"~,
@@ -316,7 +316,7 @@ CSS::Packer - Another CSS minifier
 
 =head1 VERSION
 
-Version 0.04
+Version 0.0401
 
 =head1 DESCRIPTION
 
@@ -390,7 +390,7 @@ perldoc CSS::Packer
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2008 - 2010 Merten Falk, all rights reserved.
+Copyright 2008 - 2011 Merten Falk, all rights reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.
