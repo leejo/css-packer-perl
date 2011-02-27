@@ -8,7 +8,7 @@
 
 use Test::More;
 
-my $not = 9;
+my $not = 10;
 
 SKIP: {
 	eval( 'use CSS::Packer' );
@@ -33,6 +33,9 @@ SKIP: {
 	$var = "foo {\na : b;\n}";
 	$packer->minify( \$var, { 'compress' => 'pretty' } );
 	is( $var, "foo{\na:b;\n}\n", 'string literal input and ouput (pretty)' );
+	$var = "foo {\nborder:0;\nmargin:1;\npadding:0\n}";
+	$packer->minify( \$var, { 'compress' => 'minify' } );
+	is( $var, "foo{border:0;margin:1;padding:0;}", 'string literal input and ouput (minify)' );
 }
 
 sub filesMatch {

@@ -6,7 +6,7 @@ use strict;
 use Carp;
 use Regexp::RegGrp;
 
-our $VERSION        = '1.000';
+our $VERSION        = '1.000001';
 
 our $DICTIONARY     = {
     'STRING1'   => qr~"(?>(?:(?>[^"\\]+)|\\.|\\"|\\\s)*)"~,
@@ -125,7 +125,7 @@ sub init {
                     $value =~ s/\s+/ /gsm;
                 }
 
-                return '' if ( not $key or ( not $value and $value ne '0' ) );
+                return '' if ( not $key or $value eq '' );
 
                 return $key . ':' . $value . ';' . ( $compress eq 'pretty' ? "\n" : '' );
             }
@@ -316,7 +316,7 @@ CSS::Packer - Another CSS minifier
 
 =head1 VERSION
 
-Version 1.000
+Version 1.000001
 
 =head1 DESCRIPTION
 
