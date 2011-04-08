@@ -1,5 +1,11 @@
 Revision history for CSS-Packer
 
+1.001_001   2011-04-07
+    - Added accessors.
+    - Added tests.
+    - Minor Bugfixes.
+    - Cleanup.
+
 1.000001    2011-02-27
     - Changed requirements to Regexp::RegGrp 1.000001 due to "undefined submatches bug" in Regexp::RegGrp.
     - Small change in declaration replacement sub.

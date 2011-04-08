@@ -6,7 +6,10 @@ use strict;
 use Carp;
 use Regexp::RegGrp;
 
-our $VERSION        = '1.000001';
+our $VERSION            = '1.001_001';
+
+our @COMPRESS           = ( 'minify', 'pretty' );
+our $DEFAULT_COMPRESS   = 'pretty';
 
 our $DICTIONARY     = {
     'STRING1'   => qr~"(?>(?:(?>[^"\\]+)|\\.|\\"|\\\s)*)"~,
@@ -31,11 +34,54 @@ our $PACKER_COMMENT = '\/\*\s*CSS::Packer\s*(\w+)\s*\*\/';
 
 our $CHARSET        = '^(\@charset)\s+(' . $DICTIONARY->{STRING1} . '|' . $DICTIONARY->{STRING2} . ');';
 
+our @REGGRPS        = ( 'whitespaces', 'url', 'import', 'declaration', 'rule', 'content_value', 'mediarules', 'global' );
+
 # --------------------------------------------------------------------------- #
 
+{
+    no strict 'refs';
+
+    foreach my $reggrp ( @REGGRPS ) {
+        next if defined *{ __PACKAGE__ . '::reggrp_' . $reggrp }{CODE};
+
+        *{ __PACKAGE__ . '::reggrp_' . $reggrp } = sub {
+            my ( $self ) = shift;
+
+            return $self->{ '_reggrp_' . $reggrp };
+        };
+    }
+}
+
+sub compress {
+    my ( $self, $value ) = @_;
+
+    if ( defined( $value ) ) {
+        if ( grep( $value eq $_, @COMPRESS ) ) {
+            $self->{_compress} = $value;
+        }
+        elsif ( ! $value ) {
+            $self->{_compress} = undef;
+        }
+    }
+
+    $self->{_compress} ||= $DEFAULT_COMPRESS;
+
+    return $self->{_compress};
+}
+
+sub no_compress_comment {
+    my ( $self, $value ) = @_;
+
+    $self->{_no_compress_comment} = $value ? 1 : undef if ( defined( $value ) );
+
+    return $self->{_no_compress_comment};
+}
+
 sub init {
-    my $class    = shift;
+    my $class   = shift;
     my $self    = {};
+
+    bless( $self, $class );
 
     $self->{content_value}->{reggrp_data} = [
         {
@@ -81,15 +127,10 @@ sub init {
                 my $submatches  = $_[0]->{submatches};
                 my $url         = $submatches->[0];
                 my $mediatype   = $submatches->[2];
-                my $opts        = $_[0]->{opts} || {};
 
-                my $compress    = _get_opt( $opts, 'compress' );
+                my $compress    = $self->compress();
 
-                # I don't like this, but
-                # $self->{url}->{reggrp}->exec( \$url );
-                # will not work. It isn't initialized jet.
-                # If someone has a better idea, please let me know
-                $self->_process_wrapper( 'url', \$url, $opts );
+                $self->reggrp_url()->exec( \$url );
 
                 $mediatype =~ s/^\s*|\s*$//gs;
                 $mediatype =~ s/\s*,\s*/,/gsm;
@@ -106,19 +147,14 @@ sub init {
                 my $submatches  = $_[0]->{submatches};
                 my $key         = $submatches->[0];
                 my $value       = $submatches->[1];
-                my $opts        = $_[0]->{opts} || {};
 
-                my $compress    = _get_opt( $opts, 'compress' );
+                my $compress    = $self->compress();
 
                 $key    =~ s/^\s*|\s*$//gs;
                 $value  =~ s/^\s*|\s*$//gs;
 
                 if ( $key eq 'content' ) {
-                    # I don't like this, but
-                    # $self->{content_value}->{reggrp}->exec( \$value );
-                    # will not work. It isn't initialized jet.
-                    # If someone has a better idea, please let me know
-                    $self->_process_wrapper( 'content_value', \$value, $opts );
+                    $self->reggrp_content_value->exec( \$value );
                 }
                 else {
                     $value =~ s/\s*,\s*/,/gsm;
@@ -139,9 +175,8 @@ sub init {
                 my $submatches  = $_[0]->{submatches};
                 my $selector    = $submatches->[0];
                 my $declaration = $submatches->[1];
-                my $opts        = $_[0]->{opts} || {};
 
-                my $compress    = _get_opt( $opts, 'compress' );
+                my $compress    = $self->compress();
 
                 $selector =~ s/^\s*|\s*$//gs;
                 $selector =~ s/\s*,\s*/,/gsm;
@@ -149,11 +184,7 @@ sub init {
 
                 $declaration =~ s/^\s*|\s*$//gs;
 
-                # I don't like this, but
-                # $self->{declaration}->{reggrp}->exec( \$declaration );
-                # will not work. It isn't initialized jet.
-                # If someone has a better idea, please let me know
-                $self->_process_wrapper( 'declaration', \$declaration, $opts );
+                $self->reggrp_declaration()->exec( \$declaration );
 
                 my $store = $selector . '{' . ( $compress eq 'pretty' ? "\n" : '' ) . $declaration . '}' .
                     ( $compress eq 'pretty' ? "\n" : '' );
@@ -176,9 +207,10 @@ sub init {
             regexp      => $CHARSET,
             replacement => sub {
                 my $submatches  = $_[0]->{submatches};
-                my $opts        = $_[0]->{opts} || {};
 
-                return $submatches->[0] . " " . $submatches->[1] . ( $opts->{compress} eq 'pretty' ? "\n" : '' );
+                my $compress    = $self->compress();
+
+                return $submatches->[0] . " " . $submatches->[1] . ( $compress eq 'pretty' ? "\n" : '' );
             }
         },
         {
@@ -187,18 +219,13 @@ sub init {
                 my $submatches  = $_[0]->{submatches};
                 my $mediatype   = $submatches->[0];
                 my $mediarules  = $submatches->[1];
-                my $opts        = $_[0]->{opts} || {};
 
-                my $compress    = _get_opt( $opts, 'compress' );
+                my $compress    = $self->compress();
 
                 $mediatype =~ s/^\s*|\s*$//gs;
                 $mediatype =~ s/\s*,\s*/,/gsm;
 
-                # I don't like this, but
-                # $self->{mediarules}->{reggrp}->exec( \$mediarules );
-                # will not work. It isn't initialized jet.
-                # If someone has a better idea, please let me know
-                $self->_process_wrapper( 'mediarules', \$mediarules, $opts );
+                $self->reggrp_mediarules()->exec( \$mediarules );
 
                 return '@media ' . $mediatype . '{' . ( $compress eq 'pretty' ? "\n" : '' ) .
                     $mediarules . '}' . ( $compress eq 'pretty' ? "\n" : '' );
@@ -209,14 +236,12 @@ sub init {
 
 
     map {
-        $self->{$_}->{reggrp} = Regexp::RegGrp->new(
+        $self->{ '_reggrp_' . $_ } = Regexp::RegGrp->new(
             {
                 reggrp => $self->{$_}->{reggrp_data}
             }
         );
-    } ( 'whitespaces', 'url', 'import', 'declaration', 'rule', 'content_value', 'mediarules', 'global' );
-
-    bless( $self, $class );
+    } @REGGRPS;
 
     return $self;
 }
@@ -256,54 +281,26 @@ sub minify {
         $css = ref( $input ) ? $input : \$input;
     }
 
-    if ( ref( $opts ) ne 'HASH' ) {
-        carp( 'Second argument must be a hashref of options! Using defaults!' ) if ( $opts );
-        $opts = { compress => 'pretty', no_compress_comment => 0 };
-    }
-    else {
-        $opts->{compress}               = grep( $opts->{compress}, ( 'minify', 'pretty' ) ) ? $opts->{compress} : 'pretty';
-        $opts->{no_compress_comment}    = $opts->{no_compress_comment} ? 1 : 0;
+    if ( ref( $opts ) eq 'HASH' ) {
+        foreach my $field ( 'no_compress_comment', 'compress' ) {
+            $self->$field( $opts->{$field} ) if ( defined( $opts->{$field} ) );
+        }
     }
 
-    if ( not $opts->{no_compress_comment} and ${$css} =~ /$PACKER_COMMENT/ ) {
+    if ( not $self->no_compress_comment() and ${$css} =~ /$PACKER_COMMENT/ ) {
         my $compress = $1;
         if ( $compress eq '_no_compress_' ) {
             return ( $cont eq 'scalar' ) ? ${$css} : undef;
         }
 
-        $opts->{compress} = grep( $compress, ( 'minify', 'pretty' ) ) ? $compress : $opts->{compress};
+        $self->compress( $compress );
     }
 
     ${$css} =~ s/$COMMENT/ /gsm;
 
-    $self->{global}->{reggrp}->exec( $css, $opts );
+    $self->reggrp_global()->exec( $css );
 
     return ${$css} if ( $cont eq 'scalar' );
-}
-
-sub _process_wrapper {
-    my ( $self, $reg_name, $in, $opts ) = @_;
-
-    $self->{$reg_name}->{reggrp}->exec( $in, $opts );
-}
-
-sub _restore_wrapper {
-    my ( $self, $reg_name, $in ) = @_;
-
-    $self->{$reg_name}->{reggrp}->restore_stored( $in );
-}
-
-sub _get_opt {
-    my ( $opts_hash, $opt ) = @_;
-
-    $opts_hash  ||= {};
-    $opt       ||= '';
-
-    my $ret = '';
-
-    $ret = $opts_hash->{$opt} if ( defined( $opts_hash->{$opt} ) );
-
-    return $ret;
 }
 
 1;
@@ -316,7 +313,7 @@ CSS::Packer - Another CSS minifier
 
 =head1 VERSION
 
-Version 1.000001
+Version 1.001_001
 
 =head1 DESCRIPTION
 
@@ -378,8 +375,8 @@ Merten Falk, C<< <nevesenin at cpan.org> >>
 
 =head1 BUGS
 
-Please report any bugs or feature requests to C<bug-css-packer at rt.cpan.org>, or through
-the web interface at L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=CSS-Packer>.  I will be notified, and then you'll
+Please report any bugs or feature requests through
+the web interface at L<http://github.com/nevesenin/css-packer-perl/issues>.  I will be notified, and then you'll
 automatically be notified of progress on your bug as I make changes.
 
 =head1 SUPPORT
