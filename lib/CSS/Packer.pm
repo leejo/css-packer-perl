@@ -6,10 +6,22 @@ use strict;
 use Carp;
 use Regexp::RegGrp;
 
-our $VERSION            = '1.001_001';
+our $VERSION            = '1.001_002';
 
 our @COMPRESS           = ( 'minify', 'pretty' );
 our $DEFAULT_COMPRESS   = 'pretty';
+
+our @BOOLEAN_ACCESSORS = (
+    'no_compress_comment',
+    'remove_copyright'
+);
+
+our @COPYRIGHT_ACCESSORS = (
+    'copyright',
+    'copyright_comment'
+);
+
+our $COPYRIGHT_COMMENT  = '\/\*((?>[^*]|\*[^/])*copyright(?>[^*]|\*[^/])*)\*\/';
 
 our $DICTIONARY     = {
     'STRING1'   => qr~"(?>(?:(?>[^"\\]+)|\\.|\\"|\\\s)*)"~,
@@ -28,7 +40,7 @@ our $MEDIA          = '\@media([^{}]+)\{((?:' . $IMPORT . '|' . $RULE . '|' . $W
 
 our $DECLARATION    = '((?>[^;:]+)):(?<=:)((?>[^;]*))(?:;|\s*$)';
 
-our $COMMENT        = '(\/\*[^*]*\*+([^\/][^*]*\*+)*\/)';
+our $COMMENT        = '(\/\*[^*]*\*+([^/][^*]*\*+)*\/)';
 
 our $PACKER_COMMENT = '\/\*\s*CSS::Packer\s*(\w+)\s*\*\/';
 
@@ -50,6 +62,40 @@ our @REGGRPS        = ( 'whitespaces', 'url', 'import', 'declaration', 'rule', '
             return $self->{ '_reggrp_' . $reggrp };
         };
     }
+
+    foreach my $field ( @BOOLEAN_ACCESSORS ) {
+        next if defined *{ __PACKAGE__ . '::' . $field }{CODE};
+
+        *{ __PACKAGE__ . '::' . $field} = sub {
+            my ( $self, $value ) = @_;
+
+            $self->{'_' . $field} = $value ? 1 : undef if ( defined( $value ) );
+
+            return $self->{'_' . $field};
+        };
+    }
+
+    foreach my $field ( @COPYRIGHT_ACCESSORS ) {
+        $field = '_' . $field if ( $field eq 'copyright_comment' );
+        next if defined *{ __PACKAGE__ . '::' . $field }{CODE};
+
+        *{ __PACKAGE__ . '::' . $field} = sub {
+            my ( $self, $value ) = @_;
+
+            if ( defined( $value ) and not ref( $value ) ) {
+                $value =~ s/^\s*|\s*$//gs;
+                $self->{'_' . $field} = $value;
+            }
+
+            my $ret = '';
+
+            if ( $self->{'_' . $field} ) {
+                $ret = '/* ' . $self->{'_' . $field} . ' */' . "\n";
+            }
+
+            return $ret;
+        };
+    }
 }
 
 sub compress {
@@ -67,14 +113,6 @@ sub compress {
     $self->{_compress} ||= $DEFAULT_COMPRESS;
 
     return $self->{_compress};
-}
-
-sub no_compress_comment {
-    my ( $self, $value ) = @_;
-
-    $self->{_no_compress_comment} = $value ? 1 : undef if ( defined( $value ) );
-
-    return $self->{_no_compress_comment};
 }
 
 sub init {
@@ -282,10 +320,22 @@ sub minify {
     }
 
     if ( ref( $opts ) eq 'HASH' ) {
-        foreach my $field ( 'no_compress_comment', 'compress' ) {
+        foreach my $field ( @BOOLEAN_ACCESSORS ) {
+            $self->$field( $opts->{$field} ) if ( defined( $opts->{$field} ) );
+        }
+
+        foreach my $field ( 'compress', 'copyright' ) {
             $self->$field( $opts->{$field} ) if ( defined( $opts->{$field} ) );
         }
     }
+
+    my $copyright_comment = '';
+
+    if ( ${$css} =~ /$COPYRIGHT_COMMENT/ism ) {
+        $copyright_comment = $1;
+    }
+    # Resets copyright_comment() if there is no copyright comment
+    $self->_copyright_comment( $copyright_comment );
 
     if ( not $self->no_compress_comment() and ${$css} =~ /$PACKER_COMMENT/ ) {
         my $compress = $1;
@@ -300,6 +350,10 @@ sub minify {
 
     $self->reggrp_global()->exec( $css );
 
+    if ( not $self->remove_copyright() ) {
+        ${$css} = ( $self->copyright() || $self->_copyright_comment() ) . ${$css};
+    }
+
     return ${$css} if ( $cont eq 'scalar' );
 }
 
@@ -313,7 +367,7 @@ CSS::Packer - Another CSS minifier
 
 =head1 VERSION
 
-Version 1.001_001
+Version 1.001_002
 
 =head1 DESCRIPTION
 
@@ -336,7 +390,7 @@ For backward compatibility it is still possible to call 'minify' as a function:
     CSS::Packer::minify( $scalarref, $opts );
 
 First argument must be a scalarref of CSS-Code.
-Second argument must be a hashref of options. The only option is
+Second argument must be a hashref of options. Possible options are:
 
 =over 4
 
@@ -366,6 +420,26 @@ to
 'minify' converts the same rules to
 
     a{color:black;}div{width:100px;}
+
+=item copyright
+
+You can add a copyright notice at the top of the script.
+
+=item remove_copyright
+
+If there is a copyright notice in a comment it will only be removed if this
+option is set to a true value. Otherwise the first comment that contains the
+word "copyright" will be added at the top of the packed script. A copyright
+comment will be overwritten by a copyright notice defined with the copyright
+option.
+
+=item no_compress_comment
+
+If not set to a true value it is allowed to set a CSS comment that
+prevents the input being packed or defines a compression level.
+
+    /* CSS::Packer _no_compress_ */
+    /* CSS::Packer pretty */
 
 =back
 

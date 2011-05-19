@@ -1,5 +1,11 @@
 Revision history for CSS-Packer
 
+1.001_002   2011-05-19
+    - Added "copyright" and "remove_copyright" options. Suggested by Marc S. Brooks.
+    - Updated POD.
+    - Added tests.
+    - Fixed comment regexp.
+
 1.001_001   2011-04-07
     - Added accessors.
     - Added tests.
