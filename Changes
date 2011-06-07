@@ -1,5 +1,8 @@
 Revision history for CSS-Packer
 
+1.002   2011-06-07
+    - Raised version number.
+
 1.001_002   2011-05-19
     - Added "copyright" and "remove_copyright" options. Suggested by Marc S. Brooks.
     - Updated POD.
