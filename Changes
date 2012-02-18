@@ -1,5 +1,8 @@
 Revision history for CSS-Packer
 
+1.002001    2012-02-18
+    - Use gnutar to build distribution.
+
 1.002   2011-06-07
     - Raised version number.
 
