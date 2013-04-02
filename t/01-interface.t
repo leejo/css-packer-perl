@@ -13,50 +13,50 @@ SKIP: {
 
     my $packer = CSS::Packer->init();
 
-    ok( ! $packer->no_compress_comment(), 'Default value for no_compress_comment' );
-    ok( ! $packer->remove_copyright(), 'Default value for remove_copyright' );
-    is( $packer->compress(), 'pretty', 'Default value for compress' );
-    is( $packer->copyright(), '', 'Default value for copyright' );
+    ok( ! $packer->get_no_compress_comment(), 'Default value for no_compress_comment' );
+    ok( ! $packer->get_no_copyright_comment(), 'Default value for remove_copyright' );
+    is( $packer->get_compression_level(), 'pretty', 'Default value for compression_level' );
+    is( $packer->_get_copyright_comment(), '', 'Default value for copyright' );
 
-    $packer->no_compress_comment( 1 );
-    ok( $packer->no_compress_comment(), 'Set no_compress_comment.' );
-    $packer->no_compress_comment( 0 );
-    ok( ! $packer->no_compress_comment(), 'Unset no_compress_comment.' );
+    $packer->set_no_compress_comment( 1 );
+    ok( $packer->get_no_compress_comment(), 'Set no_compress_comment.' );
+    $packer->set_no_compress_comment( 0 );
+    ok( ! $packer->get_no_compress_comment(), 'Unset no_compress_comment.' );
 
-    $packer->remove_copyright( 1 );
-    ok( $packer->remove_copyright(), 'Set remove_copyright.' );
-    $packer->remove_copyright( 0 );
-    ok( ! $packer->remove_copyright(), 'Unset remove_copyright.' );
+    $packer->set_no_copyright_comment( 1 );
+    ok( $packer->get_no_copyright_comment(), 'Set no_copyright_comment.' );
+    $packer->set_no_copyright_comment( 0 );
+    ok( ! $packer->get_no_copyright_comment(), 'Unset no_copyright_comment.' );
 
-    $packer->compress( 'minify' );
-    is( $packer->compress(), 'minify', 'Set compress to "minify".' );
-    $packer->compress( 'foo' );
-    is( $packer->compress(), 'minify', 'Set compress to "foo" failed.' );
-    $packer->compress( 'pretty' );
-    is( $packer->compress(), 'pretty', 'Setting compress back to "pretty".' );
+    $packer->set_compression_level( 'minify' );
+    is( $packer->get_compression_level(), 'minify', 'Set compression_level to "minify".' );
+    $packer->set_compression_level( 'foo' );
+    is( $packer->get_compression_level(), 'minify', 'Set compression_level to "foo" failed.' );
+    $packer->set_compression_level( 'pretty' );
+    is( $packer->get_compression_level(), 'pretty', 'Setting compression_level back to "pretty".' );
 
-    $packer->copyright( 'Ich war\'s!' );
-    is( $packer->copyright(), "/* Ich war's! */\n", 'Set copyright' );
-    $packer->copyright( 'Ich war\'s' . "\n" . 'nochmal!' );
-    is( $packer->copyright(), "/* Ich war's\nnochmal! */\n", 'Set copyright' );
-    $packer->copyright( '' );
-    is( $packer->copyright(), '', 'Reset copyright' );
+    $packer->set_copyright_comment_text( 'Ich war\'s!' );
+    is( $packer->_get_copyright_comment(), "/* Ich war's! */\n", 'Set copyright' );
+    $packer->set_copyright_comment_text( 'Ich war\'s' . "\n" . 'nochmal!' );
+    is( $packer->_get_copyright_comment(), "/* Ich war's\nnochmal! */\n", 'Set copyright' );
+    $packer->set_copyright_comment_text( '' );
+    is( $packer->_get_copyright_comment(), '', 'Reset copyright' );
 
     my $str = '';
 
     $packer->minify( \$str, {} );
 
-    ok( ! $packer->no_compress_comment(), 'Default value for no_compress_comment is still set.' );
-    is( $packer->compress(), 'pretty', 'Default value for compress is still set.' );
+    ok( ! $packer->get_no_compress_comment(), 'Default value for no_compress_comment is still set.' );
+    is( $packer->get_compression_level(), 'pretty', 'Default value for compression_level is still set.' );
 
     $packer->minify(
         \$str,
         {
-            compress            => 'minify',
+            compression_level            => 'minify',
             no_compress_comment => 1,
         }
     );
 
-    ok( $packer->no_compress_comment(), 'Set no_compress_comment again.' );
-    is( $packer->compress(), 'minify', 'Set compress to "minify" again.' );
+    ok( $packer->get_no_compress_comment(), 'Set no_compress_comment again.' );
+    is( $packer->get_compression_level(), 'minify', 'Set compression_level to "minify" again.' );
 }
