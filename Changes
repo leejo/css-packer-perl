@@ -1,5 +1,11 @@
 Revision history for CSS-Packer
 
+2.00        2015-06-04
+    - New maintainer: LEEJO
+    - Add .travis.yml for CI goodness
+    - Add Changes test
+    - Add MYMETA.json to .gitignore
+
 1.002001    2012-02-18
     - Use gnutar to build distribution.
 

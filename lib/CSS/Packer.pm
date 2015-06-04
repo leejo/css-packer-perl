@@ -6,7 +6,7 @@ use strict;
 use Carp;
 use Regexp::RegGrp;
 
-our $VERSION            = '1.002001';
+our $VERSION            = '2.00';
 
 our @COMPRESS           = ( 'minify', 'pretty' );
 our $DEFAULT_COMPRESS   = 'pretty';
@@ -365,9 +365,13 @@ __END__
 
 CSS::Packer - Another CSS minifier
 
+=for html
+<a href='https://travis-ci.org/leejo/css-packer-perl?branch=master'><img src='https://travis-ci.org/leejo/css-packer-perl.svg?branch=master' alt='Build Status' /></a>
+<a href='https://coveralls.io/r/leejo/css-packer-perl'><img src='https://coveralls.io/repos/leejo/css-packer-perl/badge.png?branch=master' alt='Coverage Status' /></a>
+
 =head1 VERSION
 
-Version 1.002001
+Version 2.00
 
 =head1 DESCRIPTION
 
@@ -445,12 +449,13 @@ prevents the input being packed or defines a compression level.
 
 =head1 AUTHOR
 
-Merten Falk, C<< <nevesenin at cpan.org> >>
+Merten Falk, C<< <nevesenin at cpan.org> >>. Now maintained by Lee
+Johnson (LEEJO)
 
 =head1 BUGS
 
 Please report any bugs or feature requests through
-the web interface at L<http://github.com/nevesenin/css-packer-perl/issues>.  I will be notified, and then you'll
+the web interface at L<http://github.com/leejo/css-packer-perl/issues>.  I will be notified, and then you'll
 automatically be notified of progress on your bug as I make changes.
 
 =head1 SUPPORT
