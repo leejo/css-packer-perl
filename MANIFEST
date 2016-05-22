@@ -15,11 +15,11 @@ inc/Module/Install/WriteAll.pm
 lib/CSS/Packer.pm
 Makefile.PL
 MANIFEST
-META.yml
 README.md
 t/00-load.t
 t/01-interface.t
 t/02-io.t
+t/03-leaks.t
 t/pod.t
 t/stylesheets/s1-expected.css
 t/stylesheets/s1.css

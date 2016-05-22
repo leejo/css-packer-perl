@@ -6,7 +6,7 @@ use strict;
 use Carp;
 use Regexp::RegGrp;
 
-our $VERSION            = '2.00';
+our $VERSION            = '2.01';
 
 our @COMPRESS           = ( 'minify', 'pretty' );
 our $DEFAULT_COMPRESS   = 'pretty';
@@ -115,6 +115,16 @@ sub compress {
     return $self->{_compress};
 }
 
+# these variables are used in the closures defined in the init function
+# below - we have to use globals as using $self within the closures leads
+# to a reference cycle and thus memory leak, and we can't scope them to
+# the init method as they may change. they are set by the minify sub
+our $reggrp_url;
+our $reggrp_declaration;
+our $reggrp_mediarules;
+our $reggrp_content_value;
+our $global_compress;
+
 sub init {
     my $class   = shift;
     my $self    = {};
@@ -166,9 +176,8 @@ sub init {
                 my $url         = $submatches->[0];
                 my $mediatype   = $submatches->[2];
 
-                my $compress    = $self->compress();
-
-                $self->reggrp_url()->exec( \$url );
+				my $compress = $global_compress;
+                $reggrp_url->exec( \$url );
 
                 $mediatype =~ s/^\s*|\s*$//gs;
                 $mediatype =~ s/\s*,\s*/,/gsm;
@@ -186,13 +195,13 @@ sub init {
                 my $key         = $submatches->[0];
                 my $value       = $submatches->[1];
 
-                my $compress    = $self->compress();
+				my $compress = $global_compress;
 
                 $key    =~ s/^\s*|\s*$//gs;
                 $value  =~ s/^\s*|\s*$//gs;
 
                 if ( $key eq 'content' ) {
-                    $self->reggrp_content_value->exec( \$value );
+                    $reggrp_content_value->exec( \$value );
                 }
                 else {
                     $value =~ s/\s*,\s*/,/gsm;
@@ -214,7 +223,7 @@ sub init {
                 my $selector    = $submatches->[0];
                 my $declaration = $submatches->[1];
 
-                my $compress    = $self->compress();
+				my $compress = $global_compress;
 
                 $selector =~ s/^\s*|\s*$//gs;
                 $selector =~ s/\s*,\s*/,/gsm;
@@ -222,7 +231,7 @@ sub init {
 
                 $declaration =~ s/^\s*|\s*$//gs;
 
-                $self->reggrp_declaration()->exec( \$declaration );
+                $reggrp_declaration->exec( \$declaration );
 
                 my $store = $selector . '{' . ( $compress eq 'pretty' ? "\n" : '' ) . $declaration . '}' .
                     ( $compress eq 'pretty' ? "\n" : '' );
@@ -246,7 +255,7 @@ sub init {
             replacement => sub {
                 my $submatches  = $_[0]->{submatches};
 
-                my $compress    = $self->compress();
+				my $compress = $global_compress;
 
                 return $submatches->[0] . " " . $submatches->[1] . ( $compress eq 'pretty' ? "\n" : '' );
             }
@@ -258,12 +267,12 @@ sub init {
                 my $mediatype   = $submatches->[0];
                 my $mediarules  = $submatches->[1];
 
-                my $compress    = $self->compress();
+				my $compress = $global_compress;
 
                 $mediatype =~ s/^\s*|\s*$//gs;
                 $mediatype =~ s/\s*,\s*/,/gsm;
 
-                $self->reggrp_mediarules()->exec( \$mediarules );
+                $reggrp_mediarules->exec( \$mediarules );
 
                 return '@media ' . $mediatype . '{' . ( $compress eq 'pretty' ? "\n" : '' ) .
                     $mediarules . '}' . ( $compress eq 'pretty' ? "\n" : '' );
@@ -329,6 +338,13 @@ sub minify {
         }
     }
 
+	# (re)initialize variables used in the closures
+	$reggrp_url = $self->reggrp_url;
+	$reggrp_declaration = $self->reggrp_declaration;
+	$reggrp_mediarules = $self->reggrp_mediarules;
+    $reggrp_content_value = $self->reggrp_content_value;
+	$global_compress = $self->compress;
+
     my $copyright_comment = '';
 
     if ( ${$css} =~ /$COPYRIGHT_COMMENT/ism ) {
@@ -371,7 +387,7 @@ CSS::Packer - Another CSS minifier
 
 =head1 VERSION
 
-Version 2.00
+Version 2.01
 
 =head1 DESCRIPTION
 

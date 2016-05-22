@@ -10,7 +10,7 @@ CSS::Packer - Another CSS minifier
 
 # VERSION
 
-Version 1.002001
+Version 2.01
 
 # DESCRIPTION
 
