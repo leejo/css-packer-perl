@@ -24,6 +24,7 @@ SKIP: {
     minTest( 's5', { compress => 'minify' } );
     minTest( 's6', { compress => 'minify' } );
     minTest( 's7', { compress => 'minify', no_compress_comment => 1 } );
+    minTest( 's8', { compress => 'minify' } );
 
     my $packer = CSS::Packer->init();
 
