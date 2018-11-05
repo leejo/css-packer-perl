@@ -341,7 +341,7 @@ sub minify {
             $self->$field( $opts->{$field} ) if ( defined( $opts->{$field} ) );
         }
 
-        $indet = $opts->{indent} && ( !$opts->{compress} || $opts->{compress} eq 'pretty' ) ? ' ' x $opts->{indent} : '';
+        $indent = $opts->{indent} && ( !$opts->{compress} || $opts->{compress} eq 'pretty' ) ? ' ' x $opts->{indent} : '';
     }
 
 	# (re)initialize variables used in the closures
