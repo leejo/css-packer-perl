@@ -444,6 +444,11 @@ to
 
     a{color:black;}div{width:100px;}
 
+=item indent
+
+Defines number of spaces, used for indentation. Used only when compress is 'pretty'.
+Default value is 0.
+
 =item copyright
 
 You can add a copyright notice at the top of the script.
