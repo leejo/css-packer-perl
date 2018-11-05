@@ -124,6 +124,7 @@ our $reggrp_declaration;
 our $reggrp_mediarules;
 our $reggrp_content_value;
 our $global_compress;
+our $indent = '';
 
 sub init {
     my $class   = shift;
@@ -210,7 +211,7 @@ sub init {
 
                 return '' if ( not $key or $value eq '' );
 
-                return $key . ':' . $value . ';' . ( $compress eq 'pretty' ? "\n" : '' );
+                return $indent . $key . ':' . $value . ';' . ( $compress eq 'pretty' ? "\n" : '' );
             }
         }
     ];
@@ -339,6 +340,8 @@ sub minify {
         foreach my $field ( 'compress', 'copyright' ) {
             $self->$field( $opts->{$field} ) if ( defined( $opts->{$field} ) );
         }
+
+        $indet = $opts->{indent} && ( !$opts->{compress} || $opts->{compress} eq 'pretty' ) ? ' ' x $opts->{indent} : '';
     }
 
 	# (re)initialize variables used in the closures
