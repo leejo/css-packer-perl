@@ -62,6 +62,11 @@ Second argument must be a hashref of options. Possible options are:
 
         a{color:black;}div{width:100px;}
 
+- indent
+
+    Defines number of spaces, used for indentation. Used only when compress is 'pretty'.
+    Default value is 0.
+
 - copyright
 
     You can add a copyright notice at the top of the script.
