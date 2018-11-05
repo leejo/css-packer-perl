@@ -6,7 +6,7 @@ use strict;
 use Carp;
 use Regexp::RegGrp;
 
-our $VERSION            = '2.05';
+our $VERSION            = '2.06';
 
 our @COMPRESS           = ( 'minify', 'pretty' );
 our $DEFAULT_COMPRESS   = 'pretty';
@@ -38,7 +38,7 @@ our $IMPORT         = '\@import\s+(' . $DICTIONARY->{STRING1} . '|' . $DICTIONAR
 
 our $AT_RULE        = '\@\S+([^{}]+)\{((?:' . $IMPORT . '|' . $RULE . '|' . $WHITESPACES . ')+)\}';
 
-our $DECLARATION    = '((?>[^;:]+)):(?<=:)((?>[^;]*))(?:;|\s*$)';
+our $DECLARATION    = '((?>[^;:]+)):(?<=:)((?>[^;]*))(?:;(?!(charset|base64))|\s*$)';
 
 our $COMMENT        = '(\/\*[^*]*\*+([^/][^*]*\*+)*\/)';
 
@@ -393,7 +393,7 @@ CSS::Packer - Another CSS minifier
 
 =head1 VERSION
 
-Version 2.05
+Version 2.06
 
 =head1 DESCRIPTION
 
