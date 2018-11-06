@@ -15,6 +15,7 @@ t/stylesheets/s1-expected-indent.css
 t/stylesheets/s1-expected.css
 t/stylesheets/s1.css
 t/stylesheets/s2-expected.css
+t/stylesheets/s2-expected-indent.css
 t/stylesheets/s2.css
 t/stylesheets/s3-expected.css
 t/stylesheets/s3.css

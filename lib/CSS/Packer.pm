@@ -6,7 +6,7 @@ use strict;
 use Carp;
 use Regexp::RegGrp;
 
-our $VERSION            = '2.06';
+our $VERSION            = '2.07';
 
 our @COMPRESS           = ( 'minify', 'pretty' );
 our $DEFAULT_COMPRESS   = 'pretty';
@@ -393,7 +393,7 @@ CSS::Packer - Another CSS minifier
 
 =head1 VERSION
 
-Version 2.06
+Version 2.07
 
 =head1 DESCRIPTION
 
