@@ -2,11 +2,8 @@
 
 CSS::Packer - Another CSS minifier
 
-<div>
-
-    <a href='https://travis-ci.org/leejo/css-packer-perl?branch=master'><img src='https://travis-ci.org/leejo/css-packer-perl.svg?branch=master' alt='Build Status' /></a>
-    <a href='https://coveralls.io/r/leejo/css-packer-perl'><img src='https://coveralls.io/repos/leejo/css-packer-perl/badge.png?branch=master' alt='Coverage Status' /></a>
-</div>
+[![Build Status](https://travis-ci.org/leejo/css-packer-perl.svg?branch=master)](https://travis-ci.org/leejo/css-packer-perl)
+[![Coverage Status](https://coveralls.io/repos/github/leejo/css-packer-perl/badge.svg?branch=master)](https://coveralls.io/github/leejo/css-packer-perl?branch=master)
 
 # VERSION
 
