@@ -8,7 +8,6 @@ t/01-interface.t
 t/02-io.t
 t/03-leaks.t
 t/04-indent.t
-t/05-data-image.t
 t/changes.t
 t/pod.t
 t/stylesheets/s1-expected-indent.css
