@@ -21,7 +21,7 @@ our @COPYRIGHT_ACCESSORS = (
     'copyright_comment'
 );
 
-our $COPYRIGHT_COMMENT  = '\/\*((?>[^*]|\*[^/])*copyright(?>[^*]|\*[^/])*)\*\/';
+our $COPYRIGHT_COMMENT  = '\/\*((?>[^*]|\*[^/])*(?:license|copyright)(?>[^*]|\*[^/])*)\*\/';
 
 our $DICTIONARY     = {
     'STRING1'   => qr~"(?>(?:(?>[^"\\]+)|\\.|\\"|\\\s)*)"~,
